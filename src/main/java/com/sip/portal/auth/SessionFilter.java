@@ -28,8 +28,10 @@ public class SessionFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
-        cookies.userId(req).flatMap(users::findWithOrganizationById)
-                .filter(user -> user.getAccountStatus() == AccountStatus.ACTIVE).ifPresent(SessionFilter::authenticate);
+        cookies.read(req).ifPresent(session -> users.findWithOrganizationById(session.userId())
+                .filter(user -> user.getAccountStatus() == AccountStatus.ACTIVE)
+                .filter(user -> user.getSessionVersion() == session.version())
+                .ifPresent(SessionFilter::authenticate));
         chain.doFilter(req, res);
     }
 

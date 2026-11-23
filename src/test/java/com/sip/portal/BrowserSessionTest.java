@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
         "app.jwt-secret=test-secret-test-secret-test-secret-1234",
         "app.cookie-secure=false",
         "app.upload-dir=target/test-uploads",
+        "app.frontend-dir=src/test/resources/site",
         "app.demo-data=true"})
 class BrowserSessionTest {
     @Value("${local.server.port}") int port;
@@ -42,13 +44,44 @@ class BrowserSessionTest {
 
     @Test
     void loginBrowseAndLogout() throws Exception {
-        String credentials = "{\"email\":\"citizen.ramesh@gmail.com\",\"password\":\"Password123\"}";
+        String credentials = "{\"email\":\"citizen@demo.example\",\"password\":\"Password123\"}";
         assertThat(send("GET", "/api/auth/me", null, false)).isEqualTo(204);
         assertThat(cookie("XSRF-TOKEN")).isNotBlank();
         assertThat(send("POST", "/api/auth/login", credentials, false)).isEqualTo(403);
         assertThat(send("POST", "/api/auth/login", credentials, true)).isEqualTo(200);
         assertThat(send("GET", "/api/problems", null, false)).isEqualTo(200);
+        String copied = cookie("sip_session");
         assertThat(send("POST", "/api/auth/logout", "", true)).isEqualTo(204);
         assertThat(send("GET", "/api/problems", null, false)).isEqualTo(401);
+
+        // A token copied before signing out no longer works
+        assertThat(get("/api/problems", "sip_session=" + copied).statusCode()).isEqualTo(401);
+        // ...and signing in again does
+        assertThat(send("POST", "/api/auth/login", credentials, true)).isEqualTo(200);
+        assertThat(get("/api/problems", "sip_session=" + cookie("sip_session")).statusCode()).isEqualTo(200);
+    }
+
+    HttpResponse<String> get(String path, String cookies) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path));
+        if (cookies != null) request.header("Cookie", cookies);
+        return HttpClient.newHttpClient().send(request.build(), BodyHandlers.ofString());
+    }
+
+    @Test
+    void servesTheBuiltFrontend() throws Exception {
+        for (String page : new String[] {"/", "/admin/review", "/citizen/problems/JH-2026-00001"}) {
+            var response = get(page, null);
+            assertThat(response.statusCode()).as(page).isEqualTo(200);
+            assertThat(response.body()).contains("test site");
+            assertThat(response.headers().firstValue("Content-Security-Policy").orElse("")).contains("default-src 'self'");
+        }
+        assertThat(get("/assets/app.js", null).headers().firstValue("Cache-Control").orElse("")).contains("immutable");
+        assertThat(get("/assets/missing.js", null).statusCode()).isEqualTo(404);
+        assertThat(get("/missing.png", null).statusCode()).isEqualTo(404);
+        // Nothing outside the folder, and the API keeps its own answers
+        assertThat(get("/..%2f..%2fapplication.yml", null).statusCode()).isGreaterThanOrEqualTo(400);
+        assertThat(get("/%2e%2e/secret.txt", null).statusCode()).isGreaterThanOrEqualTo(400);
+        assertThat(get("/api/unknown", null).statusCode()).isEqualTo(401);
+        assertThat(get("/api", null).statusCode()).isEqualTo(401);
     }
 }

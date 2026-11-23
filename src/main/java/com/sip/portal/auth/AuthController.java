@@ -35,8 +35,10 @@ class AuthController {
                 .body(UserResponse.of(user));
     }
 
+    /** Ends every session of this user, so a copied token stops working too. */
     @PostMapping("/logout")
-    ResponseEntity<Void> logout() {
+    ResponseEntity<Void> logout(@AuthenticationPrincipal User user) {
+        if (user != null) service.logout(user);
         return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookies.clear().toString()).build();
     }
 

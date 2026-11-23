@@ -24,6 +24,7 @@ public class User {
     private AccountStatus accountStatus;
     private String reviewedBy;
     private Instant reviewedAt;
+    private int sessionVersion;
 
     protected User() {}
 
@@ -52,5 +53,6 @@ public class User {
     public String getPhone() { return phone; }
     public Organization getOrganization() { return organization; }
     public Instant getCreatedAt() { return createdAt; }
+    public int getSessionVersion() { return sessionVersion; }
     public AccountStatus getAccountStatus() { return accountStatus; }
 }

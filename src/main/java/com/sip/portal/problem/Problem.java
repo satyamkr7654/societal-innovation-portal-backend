@@ -1,6 +1,7 @@
 package com.sip.portal.problem;
 
 import com.sip.portal.pledge.Pledge;
+import com.sip.portal.user.Role;
 import com.sip.portal.user.User;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -46,6 +47,12 @@ public class Problem {
     private Feedback feedback;
 
     protected Problem() {}
+
+    /** Reports nobody has verified may hold personal details, so only their author and admins see them. */
+    public boolean isVisibleTo(User user) {
+        boolean verified = status != ProblemStatus.SUBMITTED && status != ProblemStatus.REJECTED;
+        return verified || user.getRole() == Role.ADMIN || citizen.getId().equals(user.getId());
+    }
 
     public Problem(User citizen, String title, String description, Category category, String district,
             String address, double latitude, double longitude, String photoUrl, Instant submittedAt) {

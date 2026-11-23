@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class SessionCookies {
     public static final String NAME = "sip_session";
+    private static final String VERSION = "ver";
+
+    public record Session(String userId, long version) {}
 
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
@@ -31,7 +34,7 @@ public class SessionCookies {
         Instant now = Instant.now();
         Duration lifetime = Duration.ofHours(props.sessionHours());
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .subject(user.getId()).issuedAt(now).expiresAt(now.plus(lifetime)).build();
+                .subject(user.getId()).claim(VERSION, user.getSessionVersion()).issuedAt(now).expiresAt(now.plus(lifetime)).build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return cookie(encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue(), lifetime);
     }
@@ -40,13 +43,16 @@ public class SessionCookies {
         return cookie("", Duration.ZERO);
     }
 
-    /** The user id from a valid, unexpired token. */
-    public Optional<String> userId(HttpServletRequest request) {
+    /** The contents of a valid, unexpired token. */
+    public Optional<Session> read(HttpServletRequest request) {
         if (request.getCookies() == null) return Optional.empty();
         for (Cookie cookie : request.getCookies()) {
             if (!NAME.equals(cookie.getName())) continue;
             try {
-                return Optional.ofNullable(decoder.decode(cookie.getValue()).getSubject());
+                Jwt jwt = decoder.decode(cookie.getValue());
+                // Tokens from before this claim existed are refused
+                return jwt.getSubject() != null && jwt.getClaim(VERSION) instanceof Long version
+                        ? Optional.of(new Session(jwt.getSubject(), version)) : Optional.empty();
             } catch (JwtException e) {
                 return Optional.empty();
             }

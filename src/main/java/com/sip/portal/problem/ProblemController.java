@@ -21,19 +21,19 @@ class ProblemController {
     }
 
     @GetMapping
-    List<ProblemResponse> list() {
-        return service.list();
+    List<ProblemResponse> list(@AuthenticationPrincipal User user) {
+        return service.list(user);
     }
 
     @GetMapping("/similar")
     List<SimilarService.Similar> similar(@RequestParam String category, @RequestParam double lat,
-            @RequestParam double lng) {
-        return similar.find(category, lat, lng);
+            @RequestParam double lng, @AuthenticationPrincipal User user) {
+        return similar.find(category, lat, lng, user);
     }
 
     @GetMapping("/{caseId}")
-    ProblemResponse get(@PathVariable String caseId) {
-        return service.get(caseId);
+    ProblemResponse get(@PathVariable String caseId, @AuthenticationPrincipal User user) {
+        return service.get(caseId, user);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

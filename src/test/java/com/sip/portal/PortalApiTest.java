@@ -103,7 +103,7 @@ class PortalApiTest extends ApiTestSupport {
 
     @Test
     void forgedAndExpiredTokensAreIgnored() throws Exception {
-        String id = users.findByEmail("admin.dept@jharkhand.gov.in").orElseThrow().getId();
+        String id = users.findByEmail("admin@demo.example").orElseThrow().getId();
         Instant now = Instant.now();
         String wrongKey = token("another-secret-another-secret-another-12", id, now, now.plusSeconds(600));
         String expired = token("test-secret-test-secret-test-secret-1234", id, now.minusSeconds(7200),
@@ -168,7 +168,7 @@ class PortalApiTest extends ApiTestSupport {
 
     @Test
     void onlyCitizensCanSubmit() throws Exception {
-        for (String email : new String[] {"admin.dept@jharkhand.gov.in", "faculty@bitmesra.ac.in", "csr@tatasteel.com"}) {
+        for (String email : new String[] {"admin@demo.example", "university@demo.example", "industry@demo.example"}) {
             submit(login(email, "Password123"), GOOD, null).andExpect(status().isForbidden());
         }
     }
@@ -188,7 +188,7 @@ class PortalApiTest extends ApiTestSupport {
     void adminApiIsForAdminsOnly() throws Exception {
         String caseId = newProblem();
         String pending = pendingUniversity("Blocked " + UUID.randomUUID());
-        Cookie[] others = {ramesh(), login("faculty@bitmesra.ac.in", "Password123"), login("csr@tatasteel.com", "Password123")};
+        Cookie[] others = {ramesh(), login("university@demo.example", "Password123"), login("industry@demo.example", "Password123")};
         for (Cookie c : others) {
             for (String path : new String[] {"stats", "universities", "accounts/pending"}) {
                 mvc.perform(get("/api/admin/" + path).cookie(c)).andExpect(status().isForbidden());
@@ -215,7 +215,7 @@ class PortalApiTest extends ApiTestSupport {
         decide(caseId, "assign", "{\"organizationId\":999999}", admin()).andExpect(status().isBadRequest());
         decide(caseId, "assign", "{\"organizationId\":" + approvedUniversity() + "}", admin()).andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ASSIGNED"))
-                .andExpect(jsonPath("$.assignedUniversity.name").value("BIT Mesra Innovation Lab"));
+                .andExpect(jsonPath("$.assignedUniversity.name").value("Palash Institute Innovation Lab"));
         mvc.perform(get("/api/problems/" + caseId).cookie(ramesh()))
                 .andExpect(jsonPath("$.statusHistory[*].stage", contains("SUBMITTED", "VALIDATED", "ASSIGNED")));
     }
@@ -341,7 +341,7 @@ class PortalApiTest extends ApiTestSupport {
         String url = "/api/problems/" + newSolvedProblem(RAMESH) + "/feedback";
         String review = "{\"rating\":1,\"verifiedOnGround\":false}";
         postJson(url, review, newCitizen()).andExpect(status().isForbidden());
-        postJson(url, review, login("admin.dept@jharkhand.gov.in", "Password123")).andExpect(status().isForbidden());
+        postJson(url, review, login("admin@demo.example", "Password123")).andExpect(status().isForbidden());
         postJson(url, review).andExpect(status().isUnauthorized());
         postJson("/api/problems/JH-2026-WTR-0101/feedback", review, ramesh()).andExpect(status().isConflict());
     }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface UserRepository extends JpaRepository<User, String> {
     @EntityGraph(attributePaths = "organization")
@@ -31,6 +32,11 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     @EntityGraph(attributePaths = "organization")
     List<User> findByAccountStatusOrderByCreatedAt(AccountStatus status);
+
+    @Transactional
+    @Modifying
+    @Query("update User u set u.sessionVersion = u.sessionVersion + 1 where u.id = :id")
+    void endSessions(String id);
 
     @Modifying
     @Query("""

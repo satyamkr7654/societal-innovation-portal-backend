@@ -17,34 +17,11 @@ Spring Boot 4.1, Java 21, MySQL 8, Flyway.
    `.env` is ignored by Git. Never commit it.
 3. Run `mvn spring-boot:run` here, and `npm run dev` in `../frontend`.
 
-Flyway creates the tables. Never edit an applied migration; add `V2__...sql` instead.
+Flyway creates the tables. Never edit an applied migration; add the next number instead.
 
-## API
+The full API is described in [docs/API.md](docs/API.md).
 
-| Method | Path | Who |
-|---|---|---|
-| GET | /api/auth/me | anyone (204 when signed out; sets the CSRF cookie) |
-| POST | /api/auth/register, /login, /logout | anyone |
-| GET | /api/problems, /api/problems/{caseId} | signed in |
-| POST | /api/problems (multipart: `problem` JSON, optional `photo`) | citizen |
-| POST | /api/problems/{caseId}/feedback | reporting citizen, once solved |
-| GET | /api/photos/{name} | signed in |
-| GET | /api/problems/{caseId}/project | signed in (proposal: assigned university, admins, and industry once approved) |
-| GET | /api/university/assignments | university |
-| POST | /api/university/problems/{caseId}/accept, /decline, /proposal, /milestones/{id}/complete, /request-completion | assigned university |
-| POST | /api/admin/problems/{caseId}/proposal/approve, /proposal/request-changes, /complete, /return | admin |
-| GET | /api/industry/proposals, /pledges | industry |
-| POST | /api/industry/problems/{caseId}/pledges, /pledges/{id}/withdraw | industry |
-| POST | /api/university/problems/{caseId}/pledges/{id}/accept, /decline | assigned university |
-| GET | /api/public/problems | anyone (verified problems only, location rounded to about 1 km) |
-| GET | /api/problems/similar?category&lat&lng | signed in (open, same category, within 500 m) |
-| GET | /api/notifications, /notifications/unread-count | signed in, own only |
-| POST | /api/notifications/{id}/read, /notifications/read-all | signed in, own only |
-| GET | /api/admin/stats, /universities, /accounts/pending | admin |
-| POST | /api/admin/accounts/{id}/approve, /reject | admin |
-| POST | /api/admin/problems/{caseId}/validate, /reject, /assign | admin |
-
-Changes need the `X-XSRF-TOKEN` header, copied from the `XSRF-TOKEN` cookie.
+To serve the built frontend from this server as well, set `FRONTEND_DIR` (for example `../frontend/dist`).
 
 ## Workflow rules
 
@@ -70,7 +47,9 @@ Without demo data, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` for one start to creat
 
 - The session is a signed JWT in an HttpOnly, SameSite=Strict cookie. The role is read from the
   database on every request.
-- Logout clears the cookie. A copied token would stay valid until it expires (8 hours).
+- Logout ends every session of that user: the token carries a session version that logout raises.
+- Unverified and rejected reports are visible only to their author and admins.
+- A Content-Security-Policy allows only the site's own scripts (when this server serves the frontend).
 - Login throttling is in memory, per email and address. Behind a reverse proxy, configure
   forwarded headers.
 - Set `COOKIE_SECURE=true` and `DEMO_DATA=false` outside local development.

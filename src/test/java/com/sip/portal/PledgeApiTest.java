@@ -19,7 +19,7 @@ class PledgeApiTest extends ApiTestSupport {
     private static final String LONG = "A clear explanation that is comfortably longer than fifty characters.";
 
     Cookie faculty() throws Exception {
-        return login("faculty@bitmesra.ac.in", "Password123");
+        return login("university@demo.example", "Password123");
     }
 
     Cookie company() throws Exception {

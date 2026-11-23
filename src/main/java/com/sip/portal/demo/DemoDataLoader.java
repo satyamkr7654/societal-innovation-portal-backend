@@ -52,13 +52,13 @@ class DemoDataLoader implements ApplicationRunner {
         if (users.count() > 0) return;
         String hash = encoder.encode(PASSWORD);
         Map<String, User> citizens = new HashMap<>();
-        citizens.put("usr_cit_01", users.save(new User("Ramesh Kumar", "citizen.ramesh@gmail.com", hash,
+        citizens.put("usr_cit_01", users.save(new User("Ramesh Kumar", "citizen@demo.example", hash,
                 Role.CITIZEN, "9835123450", null)));
-        users.save(new User("Admin Officer", "admin.dept@jharkhand.gov.in", hash, Role.ADMIN, null, null));
-        approved(new User("Faculty Lead", "faculty@bitmesra.ac.in", hash, Role.UNIVERSITY, null,
-                organization("BIT Mesra Innovation Lab", Role.UNIVERSITY)));
-        approved(new User("CSR Manager", "csr@tatasteel.com", hash, Role.INDUSTRY, null,
-                organization("Tata Steel CSR Foundation", Role.INDUSTRY)));
+        users.save(new User("Admin Officer", "admin@demo.example", hash, Role.ADMIN, null, null));
+        approved(new User("Faculty Lead", "university@demo.example", hash, Role.UNIVERSITY, null,
+                organization("Palash Institute Innovation Lab", Role.UNIVERSITY)));
+        approved(new User("CSR Manager", "industry@demo.example", hash, Role.INDUSTRY, null,
+                organization("Shikhar Steel CSR", Role.INDUSTRY)));
 
         // Other sample citizens cannot sign in: nobody knows their password
         String locked = encoder.encode(UUID.randomUUID().toString());

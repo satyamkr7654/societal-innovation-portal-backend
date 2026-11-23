@@ -72,6 +72,10 @@ class AuthService {
         return user;
     }
 
+    void logout(User user) {
+        users.endSessions(user.getId());
+    }
+
     private Organization organization(Role type, String name) {
         if (name == null || name.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Organisation name is required.");

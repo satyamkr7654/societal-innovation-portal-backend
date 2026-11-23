@@ -48,7 +48,7 @@ import org.springframework.transaction.support.TransactionTemplate;
         "app.demo-data=true"})
 @AutoConfigureMockMvc
 abstract class ApiTestSupport {
-    static final String RAMESH = "citizen.ramesh@gmail.com";
+    static final String RAMESH = "citizen@demo.example";
     static final String GOOD = """
             {"title":"Broken water pipe near school","description":"Water has been leaking here for many days.",
              "category":"Water","district":"Ranchi","location":{"address":"Harmu","lat":23.35,"lng":85.31}}""";
@@ -121,7 +121,7 @@ abstract class ApiTestSupport {
     }
 
     Cookie admin() throws Exception {
-        return login("admin.dept@jharkhand.gov.in", "Password123");
+        return login("admin@demo.example", "Password123");
     }
 
     ResultActions decide(String caseId, String action, String body, Cookie session) throws Exception {
@@ -134,7 +134,7 @@ abstract class ApiTestSupport {
     }
 
     long approvedUniversity() {
-        return users.findByEmail("faculty@bitmesra.ac.in").orElseThrow().getOrganization().getId();
+        return users.findByEmail("university@demo.example").orElseThrow().getOrganization().getId();
     }
 
     String pendingUniversity(String organization) throws Exception {

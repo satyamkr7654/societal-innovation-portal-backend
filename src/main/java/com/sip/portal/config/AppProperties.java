@@ -13,7 +13,12 @@ public record AppProperties(
         @Min(1) int sessionHours,
         boolean cookieSecure,
         @NotBlank String uploadDir,
+        String frontendDir,
         boolean demoData) {
+
+    boolean servesFrontend() {
+        return frontendDir != null && !frontendDir.isBlank();
+    }
 
     @Override
     public String toString() {

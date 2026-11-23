@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 
 class InsightsApiTest extends ApiTestSupport {
     Cookie faculty() throws Exception {
-        return login("faculty@bitmesra.ac.in", "Password123");
+        return login("university@demo.example", "Password123");
     }
 
     List<String> messages(Cookie session, String caseId) throws Exception {
@@ -111,6 +111,10 @@ class InsightsApiTest extends ApiTestSupport {
         assertThat(similar(c, "Health", 23.5035, 85.5)).contains(id);       // about 390 m
         assertThat(similar(c, "Health", 23.5055, 85.5)).doesNotContain(id); // about 610 m
         assertThat(similar(c, "Health", 23.504, 85.5045)).doesNotContain(id); // inside the box, outside the circle
+        // Someone else is warned, without seeing what was written or which case it is
+        mvc.perform(get("/api/problems/similar?category=Health&lat=23.5&lng=85.5").cookie(newCitizen()))
+                .andExpect(jsonPath("$[0].title").value("A report waiting for verification"))
+                .andExpect(jsonPath("$[0].id").value(org.hamcrest.Matchers.nullValue()));
         assertThat(similar(c, "Energy", 23.5, 85.5)).doesNotContain(id);
         decide(id, "reject", "{\"reason\":\"x\"}", admin());
         assertThat(similar(c, "Health", 23.5, 85.5)).doesNotContain(id);
@@ -142,6 +146,27 @@ class InsightsApiTest extends ApiTestSupport {
         assertThat(body).doesNotContain("Ramesh").doesNotContain("citizen").doesNotContain("address")
                 .doesNotContain("photo").doesNotContain("description").doesNotContain("23.3512");
         mvc.perform(get("/api/public/other")).andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void unverifiedReportsAreOnlySeenByTheirAuthorAndAdmins() throws Exception {
+        String caseId = newProblem();
+        Cookie[] others = {newCitizen(), login("university@demo.example", "Password123"),
+                login("industry@demo.example", "Password123")};
+        for (String decision : new String[] {null, "reject"}) {
+            if (decision != null) decide(caseId, decision, "{\"reason\":\"x\"}", admin());
+            for (Cookie other : others) {
+                mvc.perform(get("/api/problems/" + caseId).cookie(other)).andExpect(status().isNotFound());
+                mvc.perform(get("/api/problems").cookie(other)).andExpect(jsonPath("$[*].id", not(hasItem(caseId))));
+            }
+            for (Cookie allowed : new Cookie[] {ramesh(), admin()}) {
+                mvc.perform(get("/api/problems/" + caseId).cookie(allowed)).andExpect(status().isOk());
+                mvc.perform(get("/api/problems").cookie(allowed)).andExpect(jsonPath("$[*].id", hasItem(caseId)));
+            }
+        }
+        String verified = newProblem();
+        decide(verified, "validate", "{}", admin());
+        mvc.perform(get("/api/problems/" + verified).cookie(newCitizen())).andExpect(status().isOk());
     }
 
     // ---- overdue and trend ----

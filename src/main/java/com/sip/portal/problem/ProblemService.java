@@ -31,13 +31,14 @@ class ProblemService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProblemResponse> list() {
-        return problems.findAllByOrderBySubmittedAtDesc().stream().map(ProblemResponse::of).toList();
+    public List<ProblemResponse> list(User user) {
+        return problems.findAllByOrderBySubmittedAtDesc().stream().filter(p -> p.isVisibleTo(user))
+                .map(ProblemResponse::of).toList();
     }
 
     @Transactional(readOnly = true)
-    public ProblemResponse get(String caseId) {
-        return ProblemResponse.of(find(caseId));
+    public ProblemResponse get(String caseId, User user) {
+        return ProblemResponse.of(find(caseId, user));
     }
 
     ProblemResponse create(ProblemRequest request, MultipartFile photo, User citizen) {
@@ -95,8 +96,8 @@ class ProblemService {
         return ProblemResponse.of(problem);
     }
 
-    private Problem find(String caseId) {
-        return problems.findByCaseId(caseId)
+    private Problem find(String caseId, User user) {
+        return problems.findByCaseId(caseId).filter(p -> p.isVisibleTo(user))
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "This problem does not exist."));
     }
 

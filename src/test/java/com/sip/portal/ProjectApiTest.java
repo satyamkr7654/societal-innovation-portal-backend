@@ -25,7 +25,7 @@ class ProjectApiTest extends ApiTestSupport {
              "items":[{"label":"Sensors","amount":150000},{"label":"Travel","amount":50000}]}""".formatted(LONG, LONG);
 
     Cookie faculty() throws Exception {
-        return login("faculty@bitmesra.ac.in", "Password123");
+        return login("university@demo.example", "Password123");
     }
 
     /** A different, approved university. */
@@ -104,7 +104,7 @@ class ProjectApiTest extends ApiTestSupport {
     void onlyTheAssignedUniversityCanAct() throws Exception {
         String caseId = running();
         String milestone = "milestones/" + milestoneIds(caseId).getFirst() + "/complete";
-        for (Cookie other : new Cookie[] {rival(), ramesh(), admin(), login("csr@tatasteel.com", "Password123")}) {
+        for (Cookie other : new Cookie[] {rival(), ramesh(), admin(), login("industry@demo.example", "Password123")}) {
             act(caseId, "accept", TEAM, other).andExpect(status().isForbidden());
             act(caseId, "decline", "{\"reason\":\"x\"}", other).andExpect(status().isForbidden());
             act(caseId, "proposal", PROPOSAL, other).andExpect(status().isForbidden());
@@ -143,7 +143,7 @@ class ProjectApiTest extends ApiTestSupport {
     void proposalsAreHiddenFromOthers() throws Exception {
         String caseId = running();
         act(caseId, "proposal", PROPOSAL, faculty());
-        for (Cookie other : new Cookie[] {rival(), ramesh(), login("csr@tatasteel.com", "Password123")}) {
+        for (Cookie other : new Cookie[] {rival(), ramesh(), login("industry@demo.example", "Password123")}) {
             project(caseId, other).andExpect(status().isOk()).andExpect(jsonPath("$.proposal").value(nullValue()))
                     .andExpect(jsonPath("$.milestones.length()").value(4));
         }

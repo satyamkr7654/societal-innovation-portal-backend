@@ -33,7 +33,8 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public Optional<ProjectResponse> get(String caseId, User user) {
-        Problem problem = problems.findByCaseId(caseId).orElseThrow(ProjectService::notFound);
+        Problem problem = problems.findByCaseId(caseId).filter(p -> p.isVisibleTo(user))
+                .orElseThrow(ProjectService::notFound);
         Assignment a = problem.getAssignment();
         if (a == null) return Optional.empty();
         boolean mine = isMine(a, user);

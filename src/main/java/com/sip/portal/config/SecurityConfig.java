@@ -28,12 +28,21 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 
 @Configuration
 class SecurityConfig {
+    /** Only our own scripts; fonts, map tiles and sample photos from the services the app uses. */
+    private static final String CONTENT_POLICY = String.join("; ",
+            "default-src 'self'",
+            "style-src 'self' https://fonts.googleapis.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' blob: data: https://*.tile.openstreetmap.org https://images.unsplash.com",
+            "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'");
 
     @Bean
-    SecurityFilterChain security(HttpSecurity http, SessionCookies cookies, UserRepository users) throws Exception {
+    SecurityFilterChain security(HttpSecurity http, SessionCookies cookies, UserRepository users,
+            AppProperties props) throws Exception {
         return http
                 // The session is a cookie, so state-changing requests need a CSRF token
                 .csrf(csrf -> csrf.spa())
@@ -51,7 +60,12 @@ class SecurityConfig {
                         .requestMatchers("/api/university/**").hasRole("UNIVERSITY")
                         .requestMatchers(HttpMethod.POST, "/api/problems/**").hasRole("CITIZEN")
                         .requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/api").denyAll()
+                        .requestMatchers(request -> props.servesFrontend() && request.getMethod().equals("GET")).permitAll()
                         .anyRequest().denyAll())
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_POLICY))
+                        .referrerPolicy(r -> r.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) -> write(res, 401, "Please sign in to continue."))
                         .accessDeniedHandler((req, res, ex) -> write(res, 403, "You are not allowed to do this.")))

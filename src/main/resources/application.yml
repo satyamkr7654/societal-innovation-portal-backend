@@ -22,4 +22,5 @@ app:
   session-hours: 8
   cookie-secure: ${COOKIE_SECURE:true}
   upload-dir: ${UPLOAD_DIR:uploads}
+  frontend-dir: ${FRONTEND_DIR:} # built frontend to serve; empty = API only
   demo-data: ${DEMO_DATA:false}
