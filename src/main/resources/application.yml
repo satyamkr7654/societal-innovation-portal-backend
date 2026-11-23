@@ -1,0 +1,25 @@
+spring:
+  application.name: portal-backend
+  config.import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate.ddl-auto: validate # Flyway owns the schema
+    properties:
+      hibernate.jdbc.time_zone: UTC
+      hibernate.default_batch_fetch_size: 50
+  servlet.multipart:
+    max-file-size: 5MB
+    max-request-size: 6MB
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+app:
+  jwt-secret: ${JWT_SECRET}
+  session-hours: 8
+  cookie-secure: ${COOKIE_SECURE:true}
+  upload-dir: ${UPLOAD_DIR:uploads}
+  demo-data: ${DEMO_DATA:false}
