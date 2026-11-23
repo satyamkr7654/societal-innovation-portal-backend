@@ -32,10 +32,14 @@ final class Jharkhand {
 
     static boolean isNearDistrict(double lat, double lng, String district) {
         Point hq = DISTRICTS.get(district);
-        double h = Math.pow(Math.sin(Math.toRadians(hq.lat - lat) / 2), 2)
-                + Math.cos(Math.toRadians(lat)) * Math.cos(Math.toRadians(hq.lat))
-                * Math.pow(Math.sin(Math.toRadians(hq.lng - lng) / 2), 2);
-        return 2 * 6371 * Math.asin(Math.sqrt(h)) <= MAX_DISTRICT_RADIUS_KM;
+        return distanceKm(lat, lng, hq.lat, hq.lng) <= MAX_DISTRICT_RADIUS_KM;
+    }
+
+    static double distanceKm(double lat1, double lng1, double lat2, double lng2) {
+        double h = Math.pow(Math.sin(Math.toRadians(lat2 - lat1) / 2), 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.pow(Math.sin(Math.toRadians(lng2 - lng1) / 2), 2);
+        return 2 * 6371 * Math.asin(Math.sqrt(h));
     }
 
     private static Map.Entry<String, Point> at(String name, double lat, double lng) {

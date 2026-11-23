@@ -36,6 +36,10 @@ Flyway creates the tables. Never edit an applied migration; add `V2__...sql` ins
 | GET | /api/industry/proposals, /pledges | industry |
 | POST | /api/industry/problems/{caseId}/pledges, /pledges/{id}/withdraw | industry |
 | POST | /api/university/problems/{caseId}/pledges/{id}/accept, /decline | assigned university |
+| GET | /api/public/problems | anyone (verified problems only, location rounded to about 1 km) |
+| GET | /api/problems/similar?category&lat&lng | signed in (open, same category, within 500 m) |
+| GET | /api/notifications, /notifications/unread-count | signed in, own only |
+| POST | /api/notifications/{id}/read, /notifications/read-all | signed in, own only |
 | GET | /api/admin/stats, /universities, /accounts/pending | admin |
 | POST | /api/admin/accounts/{id}/approve, /reject | admin |
 | POST | /api/admin/problems/{caseId}/validate, /reject, /assign | admin |
@@ -52,6 +56,8 @@ recorded in `status_history`. University and industry accounts cannot sign in un
 Industry can offer support while a project is in progress, its proposal is approved and completion has not
 been requested. Accepted funding can never exceed the budget. Offers are visible to the company, the
 assigned university and admins; accepted support is visible to everyone signed in. No money is handled.
+
+Overdue limits are in `StageLimits`: submitted 2 days, validated 7, assigned 7, in progress 180.
 
 Without demo data, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` for one start to create the first admin.
 

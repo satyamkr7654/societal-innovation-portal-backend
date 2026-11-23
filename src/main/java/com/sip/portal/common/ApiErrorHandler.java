@@ -12,6 +12,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /** Turns every failure into {"message": "..."} without leaking internals. */
@@ -34,6 +35,11 @@ class ApiErrorHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<Map<String, String>> unreadable() {
         return body(HttpStatus.BAD_REQUEST, "The request could not be read.");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<Map<String, String>> wrongType() {
+        return body(HttpStatus.BAD_REQUEST, "The request is not valid.");
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

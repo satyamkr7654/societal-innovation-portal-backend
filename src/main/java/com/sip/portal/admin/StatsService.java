@@ -3,6 +3,7 @@ package com.sip.portal.admin;
 import com.sip.portal.problem.*;
 import com.sip.portal.user.*;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +15,8 @@ public class StatsService {
     /** Averages are null when there is nothing to average. */
     record Stats(long total, Map<String, Long> byStatus, List<Count> byDistrict, List<Count> byCategory,
             long fundedProblems, long fundingInr, Double averageRating, Double averageDaysToSolve,
-            long pendingAccounts, long proposalsToReview, long completionsToConfirm) {}
+            long pendingAccounts, long proposalsToReview, long completionsToConfirm, long overdue,
+            List<MonthlyTrend.Month> monthly) {}
 
     private final ProblemRepository problems;
     private final UserRepository users;
@@ -26,6 +28,7 @@ public class StatsService {
 
     @Transactional(readOnly = true)
     public Stats stats() {
+        Instant now = Instant.now();
         Map<String, Long> byStatus = new LinkedHashMap<>();
         for (ProblemStatus status : ProblemStatus.values()) byStatus.put(status.name(), 0L);
         problems.countByStatus().forEach(row -> byStatus.put(((ProblemStatus) row[0]).name(), (Long) row[1]));
@@ -42,6 +45,12 @@ public class StatsService {
         return new Stats(byStatus.values().stream().mapToLong(Long::longValue).sum(), byStatus, byDistrict,
                 byCategory, problems.countFunded(), problems.totalFundingInr(), problems.averageRating(),
                 days.isPresent() ? days.getAsDouble() : null, users.countByAccountStatus(AccountStatus.PENDING),
-                problems.countProposalsToReview(), problems.countCompletionsToConfirm());
+                problems.countProposalsToReview(), problems.countCompletionsToConfirm(),
+                overdue(now), MonthlyTrend.of(problems, now));
+    }
+
+    private long overdue(Instant now) {
+        return StageLimits.LIMITS.entrySet().stream().mapToLong(
+                e -> problems.countByStatusAndStatusSinceBefore(e.getKey(), now.minus(e.getValue()))).sum();
     }
 }

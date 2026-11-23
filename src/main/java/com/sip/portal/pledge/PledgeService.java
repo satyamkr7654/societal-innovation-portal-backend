@@ -1,6 +1,7 @@
 package com.sip.portal.pledge;
 
 import com.sip.portal.common.ApiException;
+import com.sip.portal.notification.Notifier;
 import com.sip.portal.problem.*;
 import com.sip.portal.project.Proposal;
 import com.sip.portal.project.ProposalStatus;
@@ -22,7 +23,10 @@ public class PledgeService {
     private final ProblemRepository problems;
     private final PledgeRepository pledges;
 
-    PledgeService(ProblemRepository problems, PledgeRepository pledges) {
+    private final Notifier notifier;
+
+    PledgeService(ProblemRepository problems, PledgeRepository pledges, Notifier notifier) {
+        this.notifier = notifier;
         this.problems = problems;
         this.pledges = pledges;
     }
@@ -58,6 +62,7 @@ public class PledgeService {
         if (isFunding) requireWithinBudget(problem, request.amount());
         problem.getPledges().add(new Pledge(problem, user.getOrganization(), request.type(),
                 isFunding ? request.amount() : null, request.description().strip(), Instant.now()));
+        university(problem, user.getOrganization().getName() + " offered support: " + problem.getTitle());
     }
 
     @Transactional
@@ -68,6 +73,8 @@ public class PledgeService {
         }
         requirePending(pledge);
         pledge.close(PledgeStatus.WITHDRAWN, null, Instant.now());
+        university(pledge.getProblem(), user.getOrganization().getName() + " withdrew its offer: "
+                + pledge.getProblem().getTitle());
     }
 
     // ---- university ----
@@ -81,6 +88,7 @@ public class PledgeService {
         if (pledge.getType() == PledgeType.FUNDING) requireWithinBudget(problem, pledge.getAmountInr());
         Instant now = Instant.now();
         pledge.close(PledgeStatus.ACCEPTED, null, now);
+        notifier.organization(pledge.getOrganization(), problem, "Your offer was accepted: " + problem.getTitle());
         problem.record(user.getOrganization().getName(), "Support accepted from " + pledge.getOrganization().getName()
                 + " (" + pledge.getType().name().toLowerCase(Locale.ROOT) + ").", now);
     }
@@ -90,9 +98,15 @@ public class PledgeService {
         Pledge pledge = find(assignedTo(caseId, user), pledgeId);
         requirePending(pledge);
         pledge.close(PledgeStatus.DECLINED, reason.strip(), Instant.now());
+        notifier.organization(pledge.getOrganization(), pledge.getProblem(),
+                "Your offer was declined: " + pledge.getProblem().getTitle());
     }
 
     // ---- rules ----
+
+    private void university(Problem problem, String message) {
+        notifier.organization(problem.getAssignment().getOrganization(), problem, message);
+    }
 
     private Problem locked(String caseId) {
         return problems.findForUpdate(caseId)

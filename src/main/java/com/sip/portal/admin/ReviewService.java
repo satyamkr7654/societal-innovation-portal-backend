@@ -1,6 +1,7 @@
 package com.sip.portal.admin;
 
 import com.sip.portal.common.ApiException;
+import com.sip.portal.notification.Notifier;
 import com.sip.portal.problem.*;
 import com.sip.portal.user.*;
 import java.time.Instant;
@@ -14,7 +15,10 @@ public class ReviewService {
     private final ProblemRepository problems;
     private final OrganizationRepository organizations;
 
-    ReviewService(ProblemRepository problems, OrganizationRepository organizations) {
+    private final Notifier notifier;
+
+    ReviewService(ProblemRepository problems, OrganizationRepository organizations, Notifier notifier) {
+        this.notifier = notifier;
         this.problems = problems;
         this.organizations = organizations;
     }
@@ -22,6 +26,7 @@ public class ReviewService {
     @Transactional
     public ProblemResponse validate(String caseId, String remarks, User admin) {
         Problem problem = require(caseId, ProblemStatus.SUBMITTED);
+        notifier.citizen(problem, "Your problem was verified: " + problem.getTitle());
         return move(problem, ProblemStatus.VALIDATED, orDefault(remarks, "Verified as genuine and eligible."), admin);
     }
 
@@ -29,6 +34,7 @@ public class ReviewService {
     public ProblemResponse reject(String caseId, String reason, User admin) {
         Problem problem = require(caseId, ProblemStatus.SUBMITTED);
         problem.setRejectionReason(reason.strip());
+        notifier.citizen(problem, "Your problem was rejected: " + problem.getTitle());
         return move(problem, ProblemStatus.REJECTED, reason.strip(), admin);
     }
 
@@ -38,6 +44,8 @@ public class ReviewService {
         Organization university = organizations.findAssignableUniversity(organizationId)
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Please choose an approved university."));
         problem.setAssignment(new Assignment(problem, university, null, null, null));
+        notifier.citizen(problem, "Your problem was assigned to " + university.getName() + ".");
+        notifier.organization(university, problem, "New assignment: " + problem.getTitle());
         return move(problem, ProblemStatus.ASSIGNED, orDefault(remarks, "Assigned to " + university.getName() + "."),
                 admin);
     }

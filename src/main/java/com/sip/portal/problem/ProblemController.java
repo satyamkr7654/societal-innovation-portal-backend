@@ -13,14 +13,22 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/problems")
 class ProblemController {
     private final ProblemService service;
+    private final SimilarService similar;
 
-    ProblemController(ProblemService service) {
+    ProblemController(ProblemService service, SimilarService similar) {
         this.service = service;
+        this.similar = similar;
     }
 
     @GetMapping
     List<ProblemResponse> list() {
         return service.list();
+    }
+
+    @GetMapping("/similar")
+    List<SimilarService.Similar> similar(@RequestParam String category, @RequestParam double lat,
+            @RequestParam double lng) {
+        return similar.find(category, lat, lng);
     }
 
     @GetMapping("/{caseId}")

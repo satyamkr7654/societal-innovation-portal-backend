@@ -17,6 +17,14 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     boolean existsByEmail(String email);
 
+    @Query("select u from User u where u.role = :role and u.accountStatus = com.sip.portal.user.AccountStatus.ACTIVE")
+    List<User> findActiveByRole(Role role);
+
+    @Query("""
+            select u from User u where u.organization.id = :organizationId
+            and u.accountStatus = com.sip.portal.user.AccountStatus.ACTIVE""")
+    List<User> findActiveByOrganization(Long organizationId);
+
     boolean existsByRole(Role role);
 
     long countByAccountStatus(AccountStatus status);

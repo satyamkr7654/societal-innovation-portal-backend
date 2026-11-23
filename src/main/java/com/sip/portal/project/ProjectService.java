@@ -1,6 +1,7 @@
 package com.sip.portal.project;
 
 import com.sip.portal.common.ApiException;
+import com.sip.portal.notification.Notifier;
 import com.sip.portal.pledge.Pledge;
 import com.sip.portal.pledge.PledgeStatus;
 import com.sip.portal.problem.*;
@@ -21,8 +22,10 @@ public class ProjectService {
             boolean completionRequested, int pendingPledges) {}
 
     private final ProblemRepository problems;
+    private final Notifier notifier;
 
-    ProjectService(ProblemRepository problems) {
+    ProjectService(ProblemRepository problems, Notifier notifier) {
+        this.notifier = notifier;
         this.problems = problems;
     }
 
@@ -60,6 +63,7 @@ public class ProjectService {
         problem.getAssignment().accept(request.department().strip(), request.facultyLead().strip(),
                 request.studentsCount());
         problem.moveTo(ProblemStatus.IN_PROGRESS, actor(user), "Assignment accepted. Work has started.", Instant.now());
+        notifier.citizen(problem, "Work has started on your problem: " + problem.getTitle());
     }
 
     /** Sends the problem back to the admin, who can choose another university. */
@@ -68,6 +72,7 @@ public class ProjectService {
         Problem problem = mineIn(caseId, user, ProblemStatus.ASSIGNED);
         problem.setAssignment(null);
         problem.moveTo(ProblemStatus.VALIDATED, actor(user), "Assignment declined: " + reason.strip(), Instant.now());
+        notifier.admins(problem, actor(user) + " declined an assignment: " + problem.getTitle());
     }
 
     @Transactional
@@ -84,6 +89,7 @@ public class ProjectService {
         proposal.submit(summary, approach, form.durationWeeks(),
                 form.items().stream().map(i -> new BudgetItem(i.label().strip(), i.amount())).toList(), Instant.now());
         problem.record(actor(user), "Proposal submitted for admin review.", Instant.now());
+        notifier.admins(problem, "Proposal to review: " + problem.getTitle());
     }
 
     @Transactional
@@ -95,6 +101,7 @@ public class ProjectService {
         Instant now = Instant.now();
         next.complete(note.strip(), now);
         problem.record(actor(user), "Milestone completed: " + next.getTitle() + ". " + note.strip(), now);
+        notifier.citizen(problem, "Milestone completed (" + next.getTitle() + "): " + problem.getTitle());
     }
 
     @Transactional
@@ -111,6 +118,7 @@ public class ProjectService {
         Instant now = Instant.now();
         a.setCompletionRequestedAt(now);
         problem.record(actor(user), "Completion requested. Waiting for admin confirmation.", now);
+        notifier.admins(problem, "Completion to confirm: " + problem.getTitle());
     }
 
     // ---- admin ----
@@ -125,11 +133,17 @@ public class ProjectService {
         proposal.review(approve ? ProposalStatus.APPROVED : ProposalStatus.CHANGES_REQUESTED,
                 note == null || note.isBlank() ? null : note.strip());
         problem.record(actor(admin), approve ? "Proposal approved." : "Changes requested to the proposal.", Instant.now());
+        university(problem, approve ? "Proposal approved: " + problem.getTitle()
+                : "Changes requested to your proposal: " + problem.getTitle());
     }
 
     @Transactional
     public void confirmCompletion(String caseId, String remarks, User admin) {
         Problem problem = awaitingConfirmation(caseId);
+        notifier.citizen(problem, "Your problem was marked as solved. Please leave feedback: " + problem.getTitle());
+        university(problem, "Marked as solved: " + problem.getTitle());
+        problem.getPledges().stream().filter(Pledge::isAccepted).map(Pledge::getOrganization).distinct()
+                .forEach(o -> notifier.organization(o, problem, "A project you support was solved: " + problem.getTitle()));
         problem.getPledges().stream().filter(Pledge::isPending)
                 .forEach(p -> p.close(PledgeStatus.DECLINED, "The project finished before this offer was answered.", Instant.now()));
         problem.moveTo(ProblemStatus.SOLVED, actor(admin),
@@ -144,9 +158,14 @@ public class ProjectService {
         a.setCompletionRequestedAt(null);
         a.getMilestones().getLast().reopen();
         problem.record(actor(admin), "Returned for more work: " + reason.strip(), Instant.now());
+        university(problem, "More work needed: " + problem.getTitle());
     }
 
     // ---- rules ----
+
+    private void university(Problem problem, String message) {
+        notifier.organization(problem.getAssignment().getOrganization(), problem, message);
+    }
 
     private Problem awaitingConfirmation(String caseId) {
         Problem problem = locked(caseId, ProblemStatus.IN_PROGRESS);

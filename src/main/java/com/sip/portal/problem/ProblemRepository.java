@@ -44,6 +44,24 @@ public interface ProblemRepository extends JpaRepository<Problem, Long> {
     @Query("select p from Problem p where p.caseId = :caseId")
     Optional<Problem> findForUpdate(String caseId);
 
+    long countByStatusAndStatusSinceBefore(ProblemStatus status, Instant time);
+
+    @Query("select p.submittedAt from Problem p where p.submittedAt >= :from")
+    List<Instant> findSubmittedSince(Instant from);
+
+    @Query("""
+            select p from Problem p where p.category = :category and p.latitude between :south and :north
+            and p.longitude between :west and :east and p.status not in (
+              com.sip.portal.problem.ProblemStatus.SOLVED, com.sip.portal.problem.ProblemStatus.REJECTED)""")
+    List<Problem> findOpenInBox(Category category, double south, double north, double west, double east);
+
+    @Query("""
+            select new com.sip.portal.problem.VerifiedProblem(p.caseId, p.title, p.category, p.status, p.district,
+              p.latitude, p.longitude) from Problem p where p.status not in (
+              com.sip.portal.problem.ProblemStatus.SUBMITTED, com.sip.portal.problem.ProblemStatus.REJECTED)
+            order by p.submittedAt desc""")
+    List<VerifiedProblem> findVerified();
+
     interface SolvedTime {
         Instant getSubmittedAt();
         Instant getSolvedAt();

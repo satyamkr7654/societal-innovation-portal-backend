@@ -1,6 +1,7 @@
 package com.sip.portal.problem;
 
 import com.sip.portal.common.ApiException;
+import com.sip.portal.notification.Notifier;
 import com.sip.portal.user.User;
 import java.time.Instant;
 import java.time.Year;
@@ -19,8 +20,11 @@ class ProblemService {
     private final ProblemRepository problems;
     private final PhotoStorage photos;
     private final TransactionTemplate transaction;
+    private final Notifier notifier;
 
-    ProblemService(ProblemRepository problems, PhotoStorage photos, TransactionTemplate transaction) {
+    ProblemService(ProblemRepository problems, PhotoStorage photos, TransactionTemplate transaction,
+            Notifier notifier) {
+        this.notifier = notifier;
         this.problems = problems;
         this.photos = photos;
         this.transaction = transaction;
@@ -59,6 +63,7 @@ class ProblemService {
                 problem.assignCaseId(Year.now(INDIA).getValue());
                 problem.moveTo(ProblemStatus.SUBMITTED, "Citizen " + citizen.getName(),
                         "Problem registered through the portal.", now);
+                notifier.admins(problem, "New problem to review: " + title);
                 return ProblemResponse.of(problem);
             });
         } catch (RuntimeException e) {
@@ -83,6 +88,10 @@ class ProblemService {
         }
         String remarks = request.remarks() == null || request.remarks().isBlank() ? null : request.remarks().strip();
         problem.setFeedback(new Feedback(problem, request.rating(), remarks, request.verifiedOnGround(), Instant.now()));
+        if (problem.getAssignment() != null) {
+            notifier.organization(problem.getAssignment().getOrganization(), problem,
+                    "The citizen rated your solution " + request.rating() + " out of 5.");
+        }
         return ProblemResponse.of(problem);
     }
 

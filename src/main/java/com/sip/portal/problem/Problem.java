@@ -30,6 +30,7 @@ public class Problem {
     @ManyToOne(fetch = FetchType.LAZY)
     private User citizen;
     private Instant submittedAt;
+    private Instant statusSince;
     @Version
     private long version;
 
@@ -59,6 +60,7 @@ public class Problem {
         this.photoUrl = photoUrl;
         this.submittedAt = submittedAt;
         this.status = ProblemStatus.SUBMITTED;
+        this.statusSince = submittedAt;
     }
 
     /** Needs the generated id, so it runs after the first save. */
@@ -69,6 +71,7 @@ public class Problem {
     /** The only way to change status, so every change is recorded. */
     public void moveTo(ProblemStatus next, String changedBy, String remarks, Instant when) {
         status = next;
+        statusSince = when;
         history.add(new StatusHistory(this, next, changedBy, remarks, when));
     }
 
@@ -81,6 +84,7 @@ public class Problem {
     public void setAssignment(Assignment value) { assignment = value; }
     public void setFeedback(Feedback value) { feedback = value; }
 
+    public Instant getStatusSince() { return statusSince; }
     public String getCaseId() { return caseId; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }

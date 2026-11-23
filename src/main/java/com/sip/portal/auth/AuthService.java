@@ -1,6 +1,7 @@
 package com.sip.portal.auth;
 
 import com.sip.portal.common.ApiException;
+import com.sip.portal.notification.Notifier;
 import com.sip.portal.user.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
@@ -16,9 +17,11 @@ class AuthService {
     private final PasswordEncoder encoder;
     private final LoginThrottle throttle;
     private final String dummyHash;
+    private final Notifier notifier;
 
     AuthService(UserRepository users, OrganizationRepository organizations, PasswordEncoder encoder,
-            LoginThrottle throttle) {
+            LoginThrottle throttle, Notifier notifier) {
+        this.notifier = notifier;
         this.users = users;
         this.organizations = organizations;
         this.encoder = encoder;
@@ -40,8 +43,12 @@ class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "An account with this email already exists.");
         }
         Organization organization = role == Role.CITIZEN ? null : organization(role, request.organizationName());
-        return users.saveAndFlush(new User(request.name().strip(), email, encoder.encode(request.password()), role,
+        User user = users.saveAndFlush(new User(request.name().strip(), email, encoder.encode(request.password()), role,
                 role == Role.CITIZEN ? request.phone() : null, organization));
+        if (organization != null) {
+            notifier.admins(null, "Account waiting for approval: " + organization.getName());
+        }
+        return user;
     }
 
     User login(LoginRequest request, String clientAddress) {
