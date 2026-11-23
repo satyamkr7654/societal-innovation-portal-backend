@@ -29,6 +29,10 @@ Flyway creates the tables. Never edit an applied migration; add `V2__...sql` ins
 | POST | /api/problems (multipart: `problem` JSON, optional `photo`) | citizen |
 | POST | /api/problems/{caseId}/feedback | reporting citizen, once solved |
 | GET | /api/photos/{name} | signed in |
+| GET | /api/problems/{caseId}/project | signed in (proposal: assigned university and admins only) |
+| GET | /api/university/assignments | university |
+| POST | /api/university/problems/{caseId}/accept, /decline, /proposal, /milestones/{id}/complete, /request-completion | assigned university |
+| POST | /api/admin/problems/{caseId}/proposal/approve, /proposal/request-changes, /complete, /return | admin |
 | GET | /api/admin/stats, /universities, /accounts/pending | admin |
 | POST | /api/admin/accounts/{id}/approve, /reject | admin |
 | POST | /api/admin/problems/{caseId}/validate, /reject, /assign | admin |
@@ -37,7 +41,9 @@ Changes need the `X-XSRF-TOKEN` header, copied from the `XSRF-TOKEN` cookie.
 
 ## Workflow rules
 
-SUBMITTED -> VALIDATED or REJECTED (reason required) -> ASSIGNED (approved university). Every change is
+SUBMITTED -> VALIDATED or REJECTED (reason required) -> ASSIGNED (approved university)
+-> IN_PROGRESS (accepted; declining goes back to VALIDATED) -> SOLVED (admin confirms). Completion needs
+every milestone done in order and an approved proposal. Every change is
 recorded in `status_history`. University and industry accounts cannot sign in until an admin approves them.
 
 Without demo data, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` for one start to create the first admin.

@@ -10,11 +10,26 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 public interface ProblemRepository extends JpaRepository<Problem, Long> {
-    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "support.organization", "feedback"})
+    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "support.organization", "feedback"})
     List<Problem> findAllByOrderBySubmittedAtDesc();
 
-    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "support.organization", "feedback"})
+    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "support.organization", "feedback"})
     Optional<Problem> findByCaseId(String caseId);
+
+    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "support.organization", "feedback"})
+    @Query("select p from Problem p where p.assignment.organization.id = :organizationId order by p.submittedAt desc")
+    List<Problem> findByAssignedOrganization(long organizationId);
+
+    @Query("""
+            select count(p) from Problem p join p.assignment a join a.proposal r
+            where p.status = com.sip.portal.problem.ProblemStatus.IN_PROGRESS
+            and r.status = com.sip.portal.project.ProposalStatus.SUBMITTED""")
+    long countProposalsToReview();
+
+    @Query("""
+            select count(p) from Problem p join p.assignment a
+            where p.status = com.sip.portal.problem.ProblemStatus.IN_PROGRESS and a.completionRequestedAt is not null""")
+    long countCompletionsToConfirm();
 
     /** Use before changing a problem: simultaneous changes then wait in turn instead of deadlocking. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

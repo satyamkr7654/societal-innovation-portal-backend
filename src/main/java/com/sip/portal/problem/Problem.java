@@ -35,7 +35,7 @@ public class Problem {
     @OneToMany(mappedBy = "problem", cascade = CascadeType.ALL)
     @OrderBy("changedAt, id")
     private Set<StatusHistory> history = new LinkedHashSet<>();
-    @OneToOne(mappedBy = "problem", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "problem", cascade = CascadeType.ALL, orphanRemoval = true)
     private Assignment assignment;
     @OneToOne(mappedBy = "problem", cascade = CascadeType.ALL)
     private IndustrySupport support;
@@ -68,6 +68,11 @@ public class Problem {
     public void moveTo(ProblemStatus next, String changedBy, String remarks, Instant when) {
         status = next;
         history.add(new StatusHistory(this, next, changedBy, remarks, when));
+    }
+
+    /** Adds a history entry without changing status. */
+    public void record(String changedBy, String remarks, Instant when) {
+        history.add(new StatusHistory(this, status, changedBy, remarks, when));
     }
 
     public void setRejectionReason(String reason) { rejectionReason = reason; }

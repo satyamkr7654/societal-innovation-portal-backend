@@ -1,12 +1,14 @@
 package com.sip.portal.problem;
 
+import com.sip.portal.project.ProposalStatus;
 import java.time.Instant;
 import java.util.List;
 
 /** What any signed-in user may see. Deliberately has no phone or email. */
 public record ProblemResponse(String id, String title, String description, String category, String status,
         String rejectionReason, String district, Location location, Citizen citizen, University assignedUniversity,
-        Support industrySupport, String photoUrl, Instant submittedAt, List<History> statusHistory, Review feedback) {
+        Support industrySupport, String photoUrl, Instant submittedAt, List<History> statusHistory, Review feedback,
+        String pendingDecision) {
 
     public record Location(String address, double lat, double lng) {}
     public record Citizen(String id, String name) {}
@@ -30,6 +32,15 @@ public record ProblemResponse(String id, String title, String description, Strin
                 p.getHistory().stream().map(h -> new History(h.getStage().name(), h.getChangedAt(), h.getChangedBy(),
                         h.getRemarks())).toList(),
                 f == null ? null : new Review(f.getRating(), f.getRemarks(), f.getVerifiedOnGround(),
-                        f.getSubmittedAt()));
+                        f.getSubmittedAt()), pendingDecision(p));
+    }
+
+    /** What an admin still has to decide about a running project, if anything. */
+    private static String pendingDecision(Problem p) {
+        Assignment a = p.getAssignment();
+        if (a == null || p.getStatus() != ProblemStatus.IN_PROGRESS) return null;
+        if (a.getCompletionRequestedAt() != null) return "COMPLETION";
+        boolean waiting = a.getProposal() != null && a.getProposal().getStatus() == ProposalStatus.SUBMITTED;
+        return waiting ? "PROPOSAL" : null;
     }
 }

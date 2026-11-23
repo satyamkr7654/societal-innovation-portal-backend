@@ -14,7 +14,7 @@ public class StatsService {
     /** Averages are null when there is nothing to average. */
     record Stats(long total, Map<String, Long> byStatus, List<Count> byDistrict, List<Count> byCategory,
             long fundedProblems, long fundingInr, Double averageRating, Double averageDaysToSolve,
-            long pendingAccounts) {}
+            long pendingAccounts, long proposalsToReview, long completionsToConfirm) {}
 
     private final ProblemRepository problems;
     private final UserRepository users;
@@ -41,6 +41,7 @@ public class StatsService {
 
         return new Stats(byStatus.values().stream().mapToLong(Long::longValue).sum(), byStatus, byDistrict,
                 byCategory, problems.countFunded(), problems.totalFundingInr(), problems.averageRating(),
-                days.isPresent() ? days.getAsDouble() : null, users.countByAccountStatus(AccountStatus.PENDING));
+                days.isPresent() ? days.getAsDouble() : null, users.countByAccountStatus(AccountStatus.PENDING),
+                problems.countProposalsToReview(), problems.countCompletionsToConfirm());
     }
 }

@@ -86,6 +86,12 @@ class DemoDataLoader implements ApplicationRunner {
         if (!u.isNull()) {
             p.setAssignment(new Assignment(p, organization(u.get("name").asString(), Role.UNIVERSITY),
                     u.get("department").asString(), u.get("facultyLead").asString(), u.get("studentsCount").asInt()));
+            if (p.getStatus() == ProblemStatus.IN_PROGRESS || p.getStatus() == ProblemStatus.SOLVED) {
+                p.getAssignment().addMilestones();
+            }
+            if (p.getStatus() == ProblemStatus.SOLVED) {
+                p.getAssignment().getMilestones().forEach(m -> m.complete("Completed (sample data).", submitted));
+            }
         }
         JsonNode s = n.get("industrySupport");
         if (!s.isNull()) {
