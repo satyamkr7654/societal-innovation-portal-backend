@@ -1,10 +1,13 @@
 package com.sip.portal.demo;
 
+import com.sip.portal.pledge.*;
 import com.sip.portal.problem.*;
+import com.sip.portal.project.*;
 import com.sip.portal.user.*;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -95,14 +98,27 @@ class DemoDataLoader implements ApplicationRunner {
         }
         JsonNode s = n.get("industrySupport");
         if (!s.isNull()) {
-            p.setSupport(new IndustrySupport(p, organization(s.get("sponsor").asString(), Role.INDUSTRY),
-                    s.get("type").asString(), Long.parseLong(s.get("amount").asString().replaceAll("\\D", ""))));
+            Pledge pledge = new Pledge(p, organization(s.get("sponsor").asString(), Role.INDUSTRY), PledgeType.FUNDING,
+                    Long.parseLong(s.get("amount").asString().replaceAll("\\D", "")), s.get("type").asString(), submitted);
+            pledge.close(PledgeStatus.ACCEPTED, null, submitted);
+            p.getPledges().add(pledge);
+            if (p.getStatus() == ProblemStatus.IN_PROGRESS) addProposal(p, pledge.getAmountInr(), submitted);
         }
         JsonNode f = n.get("feedback");
         if (!f.isNull()) {
             p.setFeedback(new Feedback(p, f.get("rating").asInt(), f.get("comment").asString(), null,
                     Instant.parse(f.get("submittedAt").asString())));
         }
+    }
+
+    /** Gives running sample projects an approved proposal that still needs some funding. */
+    private static void addProposal(Problem p, long funded, Instant when) {
+        Proposal proposal = new Proposal(p.getAssignment());
+        proposal.submit("Sample proposal: design, build and test a low-cost solution for this problem with the local community.",
+                "Survey the site, build a prototype in the university lab, test it in the field and hand it over to residents.",
+                16, List.of(new BudgetItem("Equipment and materials", funded), new BudgetItem("Field testing", 150_000)), when);
+        proposal.review(ProposalStatus.APPROVED, null);
+        p.getAssignment().setProposal(proposal);
     }
 
     private void approved(User user) {

@@ -29,10 +29,13 @@ Flyway creates the tables. Never edit an applied migration; add `V2__...sql` ins
 | POST | /api/problems (multipart: `problem` JSON, optional `photo`) | citizen |
 | POST | /api/problems/{caseId}/feedback | reporting citizen, once solved |
 | GET | /api/photos/{name} | signed in |
-| GET | /api/problems/{caseId}/project | signed in (proposal: assigned university and admins only) |
+| GET | /api/problems/{caseId}/project | signed in (proposal: assigned university, admins, and industry once approved) |
 | GET | /api/university/assignments | university |
 | POST | /api/university/problems/{caseId}/accept, /decline, /proposal, /milestones/{id}/complete, /request-completion | assigned university |
 | POST | /api/admin/problems/{caseId}/proposal/approve, /proposal/request-changes, /complete, /return | admin |
+| GET | /api/industry/proposals, /pledges | industry |
+| POST | /api/industry/problems/{caseId}/pledges, /pledges/{id}/withdraw | industry |
+| POST | /api/university/problems/{caseId}/pledges/{id}/accept, /decline | assigned university |
 | GET | /api/admin/stats, /universities, /accounts/pending | admin |
 | POST | /api/admin/accounts/{id}/approve, /reject | admin |
 | POST | /api/admin/problems/{caseId}/validate, /reject, /assign | admin |
@@ -45,6 +48,10 @@ SUBMITTED -> VALIDATED or REJECTED (reason required) -> ASSIGNED (approved unive
 -> IN_PROGRESS (accepted; declining goes back to VALIDATED) -> SOLVED (admin confirms). Completion needs
 every milestone done in order and an approved proposal. Every change is
 recorded in `status_history`. University and industry accounts cannot sign in until an admin approves them.
+
+Industry can offer support while a project is in progress, its proposal is approved and completion has not
+been requested. Accepted funding can never exceed the budget. Offers are visible to the company, the
+assigned university and admins; accepted support is visible to everyone signed in. No money is handled.
 
 Without demo data, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` for one start to create the first admin.
 

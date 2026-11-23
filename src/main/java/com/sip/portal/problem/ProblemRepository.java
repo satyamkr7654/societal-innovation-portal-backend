@@ -10,15 +10,23 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 public interface ProblemRepository extends JpaRepository<Problem, Long> {
-    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "support.organization", "feedback"})
+    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "feedback"})
     List<Problem> findAllByOrderBySubmittedAtDesc();
 
-    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "support.organization", "feedback"})
+    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "feedback"})
     Optional<Problem> findByCaseId(String caseId);
 
-    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "support.organization", "feedback"})
+    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "feedback"})
     @Query("select p from Problem p where p.assignment.organization.id = :organizationId order by p.submittedAt desc")
     List<Problem> findByAssignedOrganization(long organizationId);
+
+    @EntityGraph(attributePaths = {"citizen", "assignment.organization", "assignment.proposal", "feedback"})
+    @Query("""
+            select p from Problem p where p.status = com.sip.portal.problem.ProblemStatus.IN_PROGRESS
+            and p.assignment.completionRequestedAt is null
+            and p.assignment.proposal.status = com.sip.portal.project.ProposalStatus.APPROVED
+            order by p.submittedAt""")
+    List<Problem> findOpenForSupport();
 
     @Query("""
             select count(p) from Problem p join p.assignment a join a.proposal r
@@ -50,10 +58,14 @@ public interface ProblemRepository extends JpaRepository<Problem, Long> {
     @Query("select p.category, count(p) from Problem p group by p.category order by count(p) desc, p.category")
     List<Object[]> countByCategory();
 
-    @Query("select count(s) from IndustrySupport s")
+    @Query("""
+            select count(distinct p.problem) from Pledge p where p.type = com.sip.portal.pledge.PledgeType.FUNDING
+            and p.status = com.sip.portal.pledge.PledgeStatus.ACCEPTED""")
     long countFunded();
 
-    @Query("select coalesce(sum(s.amountInr), 0) from IndustrySupport s")
+    @Query("""
+            select coalesce(sum(p.amountInr), 0) from Pledge p where p.type = com.sip.portal.pledge.PledgeType.FUNDING
+            and p.status = com.sip.portal.pledge.PledgeStatus.ACCEPTED""")
     long totalFundingInr();
 
     @Query("select avg(f.rating) from Feedback f")

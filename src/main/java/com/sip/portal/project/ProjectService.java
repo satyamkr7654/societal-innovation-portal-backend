@@ -1,6 +1,8 @@
 package com.sip.portal.project;
 
 import com.sip.portal.common.ApiException;
+import com.sip.portal.pledge.Pledge;
+import com.sip.portal.pledge.PledgeStatus;
 import com.sip.portal.problem.*;
 import com.sip.portal.user.Role;
 import com.sip.portal.user.User;
@@ -16,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProjectService {
     /** One row of the university's own list. */
     record Summary(ProblemResponse problem, int milestonesDone, int milestonesTotal, String proposalStatus,
-            boolean completionRequested) {}
+            boolean completionRequested, int pendingPledges) {}
 
     private final ProblemRepository problems;
 
@@ -32,7 +34,11 @@ public class ProjectService {
         Assignment a = problem.getAssignment();
         if (a == null) return Optional.empty();
         boolean mine = isMine(a, user);
-        return Optional.of(ProjectResponse.of(a, mine, mine || user.getRole() == Role.ADMIN));
+        boolean full = mine || user.getRole() == Role.ADMIN;
+        boolean industry = user.getRole() == Role.INDUSTRY;
+        boolean approved = a.getProposal() != null && a.getProposal().getStatus() == ProposalStatus.APPROVED;
+        return Optional.of(ProjectResponse.of(problem, mine, full || (industry && approved),
+                pledge -> full || (industry && pledge.isFrom(user.getOrganization()))));
     }
 
     @Transactional(readOnly = true)
@@ -41,7 +47,8 @@ public class ProjectService {
             Assignment a = p.getAssignment();
             return new Summary(ProblemResponse.of(p), (int) a.getMilestones().stream().filter(Milestone::isDone).count(),
                     a.getMilestones().size(), a.getProposal() == null ? null : a.getProposal().getStatus().name(),
-                    a.getCompletionRequestedAt() != null);
+                    a.getCompletionRequestedAt() != null,
+                    (int) p.getPledges().stream().filter(Pledge::isPending).count());
         }).toList();
     }
 
@@ -123,6 +130,8 @@ public class ProjectService {
     @Transactional
     public void confirmCompletion(String caseId, String remarks, User admin) {
         Problem problem = awaitingConfirmation(caseId);
+        problem.getPledges().stream().filter(Pledge::isPending)
+                .forEach(p -> p.close(PledgeStatus.DECLINED, "The project finished before this offer was answered.", Instant.now()));
         problem.moveTo(ProblemStatus.SOLVED, actor(admin),
                 remarks == null || remarks.isBlank() ? "Solution verified on site." : remarks.strip(), Instant.now());
     }

@@ -1,5 +1,6 @@
 package com.sip.portal.problem;
 
+import com.sip.portal.pledge.Pledge;
 import com.sip.portal.user.User;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -37,8 +38,9 @@ public class Problem {
     private Set<StatusHistory> history = new LinkedHashSet<>();
     @OneToOne(mappedBy = "problem", cascade = CascadeType.ALL, orphanRemoval = true)
     private Assignment assignment;
-    @OneToOne(mappedBy = "problem", cascade = CascadeType.ALL)
-    private IndustrySupport support;
+    @OneToMany(mappedBy = "problem", cascade = CascadeType.ALL)
+    @OrderBy("id")
+    private Set<Pledge> pledges = new LinkedHashSet<>();
     @OneToOne(mappedBy = "problem", cascade = CascadeType.ALL)
     private Feedback feedback;
 
@@ -77,7 +79,6 @@ public class Problem {
 
     public void setRejectionReason(String reason) { rejectionReason = reason; }
     public void setAssignment(Assignment value) { assignment = value; }
-    public void setSupport(IndustrySupport value) { support = value; }
     public void setFeedback(Feedback value) { feedback = value; }
 
     public String getCaseId() { return caseId; }
@@ -95,6 +96,6 @@ public class Problem {
     public Instant getSubmittedAt() { return submittedAt; }
     public Set<StatusHistory> getHistory() { return history; }
     public Assignment getAssignment() { return assignment; }
-    public IndustrySupport getSupport() { return support; }
+    public Set<Pledge> getPledges() { return pledges; }
     public Feedback getFeedback() { return feedback; }
 }

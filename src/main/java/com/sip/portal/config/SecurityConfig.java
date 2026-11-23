@@ -46,6 +46,7 @@ class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/industry/**").hasRole("INDUSTRY")
                         .requestMatchers("/api/university/**").hasRole("UNIVERSITY")
                         .requestMatchers(HttpMethod.POST, "/api/problems/**").hasRole("CITIZEN")
                         .requestMatchers("/api/**").authenticated()
