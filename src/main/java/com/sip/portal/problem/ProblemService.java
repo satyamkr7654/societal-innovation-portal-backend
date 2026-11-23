@@ -70,7 +70,8 @@ class ProblemService {
     /** Only the citizen who reported a solved problem may review it, and only once. */
     @Transactional
     public ProblemResponse addFeedback(String caseId, FeedbackRequest request, User user) {
-        Problem problem = find(caseId);
+        Problem problem = problems.findForUpdate(caseId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "This problem does not exist."));
         if (!problem.getCitizen().getId().equals(user.getId())) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Only the citizen who reported this problem can review it.");
         }
@@ -82,7 +83,6 @@ class ProblemService {
         }
         String remarks = request.remarks() == null || request.remarks().isBlank() ? null : request.remarks().strip();
         problem.setFeedback(new Feedback(problem, request.rating(), remarks, request.verifiedOnGround(), Instant.now()));
-        problems.flush(); // a simultaneous second review fails here on the unique constraint
         return ProblemResponse.of(problem);
     }
 

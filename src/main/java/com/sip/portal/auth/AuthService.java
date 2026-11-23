@@ -56,6 +56,12 @@ class AuthService {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "Incorrect email or password.");
         }
         throttle.succeeded(throttleKey);
+        // Only after the password is proven, so this does not reveal account details
+        switch (user.getAccountStatus()) {
+            case PENDING -> throw new ApiException(HttpStatus.FORBIDDEN, "Your account is waiting for admin approval.");
+            case REJECTED -> throw new ApiException(HttpStatus.FORBIDDEN, "Your registration was not approved.");
+            case ACTIVE -> { }
+        }
         return user;
     }
 

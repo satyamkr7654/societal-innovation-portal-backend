@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Fills an EMPTY database with fictional data. Off unless DEMO_DATA=true: its password is public. */
 @Component
+@Order(1)
 @ConditionalOnProperty(name = "app.demo-data", havingValue = "true")
 class DemoDataLoader implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(DemoDataLoader.class);
@@ -50,9 +52,9 @@ class DemoDataLoader implements ApplicationRunner {
         citizens.put("usr_cit_01", users.save(new User("Ramesh Kumar", "citizen.ramesh@gmail.com", hash,
                 Role.CITIZEN, "9835123450", null)));
         users.save(new User("Admin Officer", "admin.dept@jharkhand.gov.in", hash, Role.ADMIN, null, null));
-        users.save(new User("Faculty Lead", "faculty@bitmesra.ac.in", hash, Role.UNIVERSITY, null,
+        approved(new User("Faculty Lead", "faculty@bitmesra.ac.in", hash, Role.UNIVERSITY, null,
                 organization("BIT Mesra Innovation Lab", Role.UNIVERSITY)));
-        users.save(new User("CSR Manager", "csr@tatasteel.com", hash, Role.INDUSTRY, null,
+        approved(new User("CSR Manager", "csr@tatasteel.com", hash, Role.INDUSTRY, null,
                 organization("Tata Steel CSR Foundation", Role.INDUSTRY)));
 
         // Other sample citizens cannot sign in: nobody knows their password
@@ -95,6 +97,11 @@ class DemoDataLoader implements ApplicationRunner {
             p.setFeedback(new Feedback(p, f.get("rating").asInt(), f.get("comment").asString(), null,
                     Instant.parse(f.get("submittedAt").asString())));
         }
+    }
+
+    private void approved(User user) {
+        user.activate();
+        users.save(user);
     }
 
     private Organization organization(String name, Role type) {

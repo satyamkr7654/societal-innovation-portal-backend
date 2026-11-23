@@ -15,7 +15,7 @@ public record ProblemResponse(String id, String title, String description, Strin
     public record History(String stage, Instant changedAt, String changedBy, String remarks) {}
     public record Review(int rating, String remarks, Boolean verifiedOnGround, Instant submittedAt) {}
 
-    static ProblemResponse of(Problem p) {
+    public static ProblemResponse of(Problem p) {
         Assignment a = p.getAssignment();
         IndustrySupport s = p.getSupport();
         Feedback f = p.getFeedback();

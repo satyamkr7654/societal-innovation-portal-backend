@@ -28,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -57,6 +58,7 @@ class PortalApiTest {
     @Autowired ProblemRepository problems;
     @Autowired PasswordEncoder encoder;
     @Autowired TransactionTemplate tx;
+    @Autowired JdbcTemplate jdbc;
     String ip;
 
     @BeforeEach
@@ -260,6 +262,141 @@ class PortalApiTest {
         String json = GOOD.replace(from, to);
         assertThat(json).isNotEqualTo(GOOD);
         submit(ramesh(), json, null).andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    // ---- admin ----
+    Cookie admin() throws Exception {
+        return login("admin.dept@jharkhand.gov.in", "Password123");
+    }
+
+    ResultActions decide(String caseId, String action, String body, Cookie session) throws Exception {
+        return postJson("/api/admin/problems/" + caseId + "/" + action, body, session);
+    }
+
+    String newProblem() throws Exception {
+        String body = submit(ramesh(), GOOD, null).andReturn().getResponse().getContentAsString();
+        return body.replaceAll("(?s)^\\{\"id\":\"([^\"]+)\".*", "$1");
+    }
+
+    long approvedUniversity() {
+        return users.findByEmail("faculty@bitmesra.ac.in").orElseThrow().getOrganization().getId();
+    }
+
+    @Test
+    void adminApiIsForAdminsOnly() throws Exception {
+        String caseId = newProblem();
+        String pending = pendingUniversity("Blocked " + UUID.randomUUID());
+        Cookie[] others = {ramesh(), login("faculty@bitmesra.ac.in", "Password123"), login("csr@tatasteel.com", "Password123")};
+        for (Cookie c : others) {
+            for (String path : new String[] {"stats", "universities", "accounts/pending"}) {
+                mvc.perform(get("/api/admin/" + path).cookie(c)).andExpect(status().isForbidden());
+            }
+            decide(caseId, "validate", "{}", c).andExpect(status().isForbidden());
+            decide(caseId, "reject", "{\"reason\":\"x\"}", c).andExpect(status().isForbidden());
+            decide(caseId, "assign", "{\"organizationId\":1}", c).andExpect(status().isForbidden());
+            postJson("/api/admin/accounts/" + pending + "/approve", "", c).andExpect(status().isForbidden());
+        }
+        mvc.perform(get("/api/admin/stats")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void validateThenAssignRecordsHistory() throws Exception {
+        String caseId = newProblem();
+        decide(caseId, "assign", "{\"organizationId\":" + approvedUniversity() + "}", admin()).andExpect(status().isConflict());
+        decide(caseId, "validate", "{\"remarks\":\" Site visited. \"}", admin()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("VALIDATED"))
+                .andExpect(jsonPath("$.statusHistory[1].remarks").value("Site visited."))
+                .andExpect(jsonPath("$.statusHistory[1].changedBy").value("Admin Officer (Govt. Admin)"));
+        decide(caseId, "validate", "{}", admin()).andExpect(status().isConflict());
+        decide(caseId, "reject", "{\"reason\":\"late\"}", admin()).andExpect(status().isConflict());
+        decide(caseId, "assign", "{}", admin()).andExpect(status().isBadRequest());
+        decide(caseId, "assign", "{\"organizationId\":999999}", admin()).andExpect(status().isBadRequest());
+        decide(caseId, "assign", "{\"organizationId\":" + approvedUniversity() + "}", admin()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ASSIGNED"))
+                .andExpect(jsonPath("$.assignedUniversity.name").value("BIT Mesra Innovation Lab"));
+        mvc.perform(get("/api/problems/" + caseId).cookie(ramesh()))
+                .andExpect(jsonPath("$.statusHistory[*].stage", contains("SUBMITTED", "VALIDATED", "ASSIGNED")));
+    }
+
+    @Test
+    void rejectionNeedsAReason() throws Exception {
+        String caseId = newProblem();
+        decide(caseId, "reject", "{\"reason\":\"   \"}", admin()).andExpect(status().isBadRequest());
+        decide(caseId, "reject", "{\"reason\":\"" + "x".repeat(501) + "\"}", admin()).andExpect(status().isBadRequest());
+        decide(caseId, "reject", "{\"reason\":\"Duplicate\"}", admin()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"))
+                .andExpect(jsonPath("$.rejectionReason").value("Duplicate"));
+        decide(caseId, "validate", "{}", admin()).andExpect(status().isConflict());
+        decide("NOPE", "validate", "{}", admin()).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void twoAdminsDecidingAtOnceSaveOneDecision() throws Exception {
+        String caseId = newProblem();
+        Cookie session = admin();
+        var barrier = new CyclicBarrier(2);
+        Callable<Integer> accept = () -> { barrier.await(); return decide(caseId, "validate", "{}", session).andReturn().getResponse().getStatus(); };
+        Callable<Integer> refuse = () -> { barrier.await(); return decide(caseId, "reject", "{\"reason\":\"No\"}", session).andReturn().getResponse().getStatus(); };
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var a = pool.submit(accept);
+            var b = pool.submit(refuse);
+            assertThat(new int[] {a.get(), b.get()}).containsExactlyInAnyOrder(200, 409);
+        }
+        mvc.perform(get("/api/problems/" + caseId).cookie(session))
+                .andExpect(jsonPath("$.statusHistory.length()").value(2));
+    }
+
+    String pendingUniversity(String organization) throws Exception {
+        String email = UUID.randomUUID() + "@uni.example.com";
+        register(email, "university", ",\"organizationName\":\"" + organization + "\"")
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.approved").value(false));
+        return users.findByEmail(email).orElseThrow().getId();
+    }
+
+    @Test
+    void organisationsWaitForApproval() throws Exception {
+        String name = "New Uni " + UUID.randomUUID();
+        String id = pendingUniversity(name);
+        String email = users.findById(id).orElseThrow().getEmail();
+        tryLogin(email, "Secret123").andExpect(status().isForbidden()).andExpect(cookie().doesNotExist("sip_session"))
+                .andExpect(jsonPath("$.message", containsString("waiting")));
+        tryLogin(email, "wrong").andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/admin/universities").cookie(admin())).andExpect(content().string(not(containsString(name))));
+        mvc.perform(get("/api/admin/accounts/pending").cookie(admin())).andExpect(content().string(containsString(name)))
+                .andExpect(content().string(not(containsString("$2a$"))));
+
+        postJson("/api/admin/accounts/" + id + "/approve", "", admin()).andExpect(status().isNoContent());
+        postJson("/api/admin/accounts/" + id + "/reject", "", admin()).andExpect(status().isConflict());
+        Cookie session = login(email, "Secret123");
+        mvc.perform(get("/api/admin/universities").cookie(admin())).andExpect(content().string(containsString(name)));
+
+        // A session stops working as soon as the account is no longer active
+        tx.executeWithoutResult(s -> jdbc.update("update users set account_status='REJECTED' where id=?", id));
+        mvc.perform(get("/api/problems").cookie(session)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectedAccountsCannotSignIn() throws Exception {
+        String id = pendingUniversity("Fake " + UUID.randomUUID());
+        postJson("/api/admin/accounts/" + id + "/reject", "", admin()).andExpect(status().isNoContent());
+        tryLogin(users.findById(id).orElseThrow().getEmail(), "Secret123").andExpect(status().isForbidden());
+        postJson("/api/admin/accounts/unknown/approve", "", admin()).andExpect(status().isConflict());
+    }
+
+    @Test
+    void statisticsComeFromTheDatabase() throws Exception {
+        Cookie session = admin();
+        Number before = com.jayway.jsonpath.JsonPath.read(mvc.perform(get("/api/admin/stats").cookie(session))
+                .andReturn().getResponse().getContentAsString(), "$.byStatus.SUBMITTED");
+        newProblem();
+        mvc.perform(get("/api/admin/stats").cookie(session)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.byStatus.SUBMITTED").value(before.intValue() + 1))
+                .andExpect(jsonPath("$.total").value((int) problems.count()))
+                .andExpect(jsonPath("$.fundedProblems").value(5))
+                .andExpect(jsonPath("$.fundingInr").value(1730000))
+                .andExpect(jsonPath("$.averageRating", greaterThan(0.0)))
+                .andExpect(jsonPath("$.averageDaysToSolve", greaterThan(0.0)))
+                .andExpect(jsonPath("$.byDistrict[0].name").value("Ranchi"));
     }
 
     // ---- photos ----

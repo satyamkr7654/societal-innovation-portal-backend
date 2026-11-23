@@ -45,6 +45,7 @@ class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/problems/**").hasRole("CITIZEN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())

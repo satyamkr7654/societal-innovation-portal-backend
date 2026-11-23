@@ -1,5 +1,6 @@
 package com.sip.portal.auth;
 
+import com.sip.portal.user.AccountStatus;
 import com.sip.portal.user.User;
 import com.sip.portal.user.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -27,7 +28,8 @@ public class SessionFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
-        cookies.userId(req).flatMap(users::findWithOrganizationById).ifPresent(SessionFilter::authenticate);
+        cookies.userId(req).flatMap(users::findWithOrganizationById)
+                .filter(user -> user.getAccountStatus() == AccountStatus.ACTIVE).ifPresent(SessionFilter::authenticate);
         chain.doFilter(req, res);
     }
 

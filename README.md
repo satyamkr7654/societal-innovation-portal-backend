@@ -29,8 +29,18 @@ Flyway creates the tables. Never edit an applied migration; add `V2__...sql` ins
 | POST | /api/problems (multipart: `problem` JSON, optional `photo`) | citizen |
 | POST | /api/problems/{caseId}/feedback | reporting citizen, once solved |
 | GET | /api/photos/{name} | signed in |
+| GET | /api/admin/stats, /universities, /accounts/pending | admin |
+| POST | /api/admin/accounts/{id}/approve, /reject | admin |
+| POST | /api/admin/problems/{caseId}/validate, /reject, /assign | admin |
 
 Changes need the `X-XSRF-TOKEN` header, copied from the `XSRF-TOKEN` cookie.
+
+## Workflow rules
+
+SUBMITTED -> VALIDATED or REJECTED (reason required) -> ASSIGNED (approved university). Every change is
+recorded in `status_history`. University and industry accounts cannot sign in until an admin approves them.
+
+Without demo data, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` for one start to create the first admin.
 
 ## Tests
 

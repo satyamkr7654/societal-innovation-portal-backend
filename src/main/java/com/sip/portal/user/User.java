@@ -20,6 +20,10 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     private Organization organization;
     private Instant createdAt;
+    @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR)
+    private AccountStatus accountStatus;
+    private String reviewedBy;
+    private Instant reviewedAt;
 
     protected User() {}
 
@@ -32,7 +36,13 @@ public class User {
         this.phone = phone;
         this.organization = organization;
         this.createdAt = Instant.now();
+        // Organisations must be checked by an admin before they can act
+        this.accountStatus = role == Role.UNIVERSITY || role == Role.INDUSTRY
+                ? AccountStatus.PENDING : AccountStatus.ACTIVE;
     }
+
+    public void activate() { accountStatus = AccountStatus.ACTIVE; }
+
 
     public String getId() { return id; }
     public String getName() { return name; }
@@ -41,4 +51,6 @@ public class User {
     public Role getRole() { return role; }
     public String getPhone() { return phone; }
     public Organization getOrganization() { return organization; }
+    public Instant getCreatedAt() { return createdAt; }
+    public AccountStatus getAccountStatus() { return accountStatus; }
 }
