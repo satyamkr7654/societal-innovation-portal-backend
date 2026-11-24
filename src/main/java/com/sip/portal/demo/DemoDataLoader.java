@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,34 +24,40 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Fills an EMPTY database with fictional data. Off unless DEMO_DATA=true: its password is public. */
+/** Fills an EMPTY database with fictional data. Off unless DEMO_DATA=true. Its password is public unless DEMO_PASSWORD is set. */
 @Component
 @Order(1)
 @ConditionalOnProperty(name = "app.demo-data", havingValue = "true")
 class DemoDataLoader implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(DemoDataLoader.class);
-    private static final String PASSWORD = "Password123";
+    private static final String PUBLIC_PASSWORD = "Password123";
 
     private final UserRepository users;
     private final OrganizationRepository organizations;
     private final ProblemRepository problems;
     private final PasswordEncoder encoder;
     private final JsonMapper json;
+    private final String password;
 
     DemoDataLoader(UserRepository users, OrganizationRepository organizations, ProblemRepository problems,
-            PasswordEncoder encoder, JsonMapper json) {
+            PasswordEncoder encoder, JsonMapper json,
+            @Value("${DEMO_PASSWORD:" + PUBLIC_PASSWORD + "}") String password) {
         this.users = users;
         this.organizations = organizations;
         this.problems = problems;
         this.encoder = encoder;
         this.json = json;
+        if (!password.equals(PUBLIC_PASSWORD) && password.length() < 12) {
+            throw new IllegalStateException("DEMO_PASSWORD needs at least 12 characters");
+        }
+        this.password = password;
     }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
         if (users.count() > 0) return;
-        String hash = encoder.encode(PASSWORD);
+        String hash = encoder.encode(password);
         Map<String, User> citizens = new HashMap<>();
         citizens.put("usr_cit_01", users.save(new User("Ramesh Kumar", "citizen@demo.example", hash,
                 Role.CITIZEN, "9835123450", null)));
@@ -70,7 +77,9 @@ class DemoDataLoader implements ApplicationRunner {
                 addProblem(n, citizen);
             }
         }
-        log.warn("Demo data loaded with a publicly known password. Do not expose this server.");
+        if (password.equals(PUBLIC_PASSWORD)) {
+            log.warn("Demo data loaded with a publicly known password. Do not expose this server.");
+        }
     }
 
     private void addProblem(JsonNode n, User citizen) {

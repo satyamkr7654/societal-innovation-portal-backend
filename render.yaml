@@ -1,0 +1,21 @@
+# Render blueprint: New > Blueprint, then choose this repository
+services:
+  - type: web
+    name: societal-innovation-portal
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: DEMO_DATA
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
